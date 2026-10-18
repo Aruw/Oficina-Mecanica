@@ -46,7 +46,7 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(OptimisticLockingFailureException.class)
-    ProblemDetail concorrencia(OptimisticLockingFailureException e) {
+    ProblemDetail concorrencia() {
         return problema(HttpStatus.CONFLICT, "Alteração concorrente",
                 "O registro foi alterado por outra operação. Recarregue e tente novamente.");
     }
@@ -66,7 +66,7 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class})
-    ProblemDetail requisicaoMalFormada(Exception e) {
+    ProblemDetail requisicaoMalFormada() {
         return problema(HttpStatus.BAD_REQUEST, "Requisição mal formada", "Corpo ou parâmetros da requisição inválidos");
     }
 
