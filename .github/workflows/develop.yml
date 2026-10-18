@@ -1,0 +1,194 @@
+name: 🔨 Develop
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+concurrency:
+  group: develop-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build-testes:
+    name: Build, testes e cobertura
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compilar, testar e validar cobertura (>= 80%)
+        run: mvn -B verify
+
+      - name: Resumo dos testes e da cobertura
+        if: always()
+        run: |
+          {
+            echo "### Testes"
+            if [ -d target/surefire-reports ]; then
+              cat target/surefire-reports/TEST-*.xml | grep -o '<testsuite [^>]*>' | awk '
+                { match($0,/tests="[0-9]+"/); t+=substr($0,RSTART+7,RLENGTH-8)
+                  match($0,/failures="[0-9]+"/); f+=substr($0,RSTART+10,RLENGTH-11)
+                  match($0,/errors="[0-9]+"/); e+=substr($0,RSTART+8,RLENGTH-9) }
+                END { printf "| Testes | Falhas | Erros |\n|---|---|---|\n| %d | %d | %d |\n\n", t, f, e }'
+            fi
+            if [ -f target/site/jacoco/jacoco.csv ]; then
+              awk -F, 'NR>1 && ($2 ~ /domain|application/) {mi+=$4; ci+=$5; ml+=$8; cl+=$9}
+                END {printf "**Cobertura dos domínios críticos:** linhas %.1f%% · instruções %.1f%% (mínimo 80%%)\n", 100*cl/(cl+ml), 100*ci/(ci+mi)}' \
+                target/site/jacoco/jacoco.csv
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Artefato — resultados dos testes
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resultado-testes
+          path: app/target/surefire-reports
+
+      - name: Artefato — cobertura (JaCoCo)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura-jacoco
+          path: app/target/site/jacoco
+
+      - name: Artefato — aplicação (jar)
+        uses: actions/upload-artifact@v4
+        with:
+          name: oficina-jar
+          path: app/target/oficina-*.jar
+          retention-days: 14
+
+  analise-estatica:
+    name: Análise estática (CodeQL + PMD)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Inicializar CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: java-kotlin
+          build-mode: manual
+          queries: security-and-quality
+
+      - name: Compilar
+        working-directory: app
+        run: mvn -B -q compile -DskipTests
+
+      - name: Analisar com CodeQL
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: codeql-java
+          output: codeql-resultados
+
+      - name: PMD (boas práticas) e CPD (código duplicado)
+        working-directory: app
+        run: mvn -B pmd:pmd pmd:cpd
+
+      - name: Resumo da análise estática
+        if: always()
+        run: |
+          violacoes=$(grep -c '<violation' app/target/pmd.xml 2>/dev/null || true)
+          duplicacoes=$(grep -c '<duplication' app/target/cpd.xml 2>/dev/null || true)
+          alertas=$(cat codeql-resultados/*.sarif 2>/dev/null | grep -o '"ruleId"' | wc -l)
+          {
+            echo "### Análise estática"
+            echo "| Ferramenta | Achados |"
+            echo "|---|---|"
+            echo "| CodeQL (security-and-quality) | ${alertas:-0} |"
+            echo "| PMD — violações | ${violacoes:-0} |"
+            echo "| CPD — trechos duplicados | ${duplicacoes:-0} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Artefato — análise estática
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analise-estatica
+          path: |
+            codeql-resultados
+            app/target/pmd.xml
+            app/target/cpd.xml
+            app/target/reports
+
+  vulnerabilidades:
+    name: Vulnerabilidades (Trivy)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Dependências, segredos e configuração (relatório)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,secret,misconfig
+          severity: CRITICAL,HIGH,MEDIUM
+          format: table
+          output: trivy-repositorio.txt
+
+      - name: Build da imagem Docker
+        run: docker build -t oficina-api:${{ github.sha }} app
+
+      - name: Imagem Docker (relatório)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: oficina-api:${{ github.sha }}
+          severity: CRITICAL,HIGH,MEDIUM
+          format: table
+          output: trivy-imagem.txt
+
+      - name: Imagem Docker (SARIF para o GitHub Code Scanning)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: oficina-api:${{ github.sha }}
+          severity: CRITICAL,HIGH
+          format: sarif
+          output: trivy-imagem.sarif
+
+      - name: Enviar SARIF ao Code Scanning
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: trivy-imagem.sarif
+          category: trivy-imagem
+
+      - name: Resumo das vulnerabilidades
+        if: always()
+        run: |
+          {
+            echo "### Trivy — repositório"; echo '```'; cat trivy-repositorio.txt 2>/dev/null || echo "sem achados"; echo '```'
+            echo "### Trivy — imagem"; echo '```'; grep -E '^(Total|.*\((alpine|jar)\))' trivy-imagem.txt 2>/dev/null || echo "sem achados"; echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Artefato — vulnerabilidades
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: vulnerabilidades
+          path: |
+            trivy-repositorio.txt
+            trivy-imagem.txt
+            trivy-imagem.sarif

@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: oficina-db
+    environment:
+      POSTGRES_DB: oficina
+      POSTGRES_USER: ${DB_USERNAME:-oficina}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-oficina-local}
+    ports:
+      - "5432:5432"
+    volumes:
+      - oficina-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME:-oficina} -d oficina"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: ./app
+    image: aruw/oficina-api:latest
+    container_name: oficina-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_URL: jdbc:postgresql://db:5432/oficina
+      DB_USERNAME: ${DB_USERNAME:-oficina}
+      DB_PASSWORD: ${DB_PASSWORD:-oficina-local}
+      JWT_SECRET: ${JWT_SECRET:-troque-este-segredo-local-com-32-caracteres-ou-mais}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-PT2H}
+      ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin123}
+    ports:
+      - "8080:8080"
+
+volumes:
+  oficina-data:
