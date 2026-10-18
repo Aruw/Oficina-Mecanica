@@ -23,7 +23,7 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v4
         with:
@@ -78,7 +78,7 @@ jobs:
     name: Análise estática (CodeQL + PMD)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-java@v4
         with:
@@ -137,7 +137,7 @@ jobs:
     name: Vulnerabilidades (Trivy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Dependências, segredos e configuração (relatório)
         uses: aquasecurity/trivy-action@0.28.0
