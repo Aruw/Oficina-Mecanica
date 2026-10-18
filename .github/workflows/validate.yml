@@ -1,0 +1,62 @@
+name: 🔍 Validate
+
+on:
+  push:
+    branches-ignore:
+      - develop
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-testes:
+    name: Build, testes e cobertura
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Compilar, testar e validar cobertura
+        run: mvn -B verify
+
+      - name: Resumo
+        if: always()
+        run: |
+          {
+            echo "### Resultado — \`${GITHUB_REF_NAME}\`"
+            if [ -d target/surefire-reports ]; then
+              cat target/surefire-reports/TEST-*.xml | grep -o '<testsuite [^>]*>' | awk '
+                { match($0,/tests="[0-9]+"/); t+=substr($0,RSTART+7,RLENGTH-8)
+                  match($0,/failures="[0-9]+"/); f+=substr($0,RSTART+10,RLENGTH-11)
+                  match($0,/errors="[0-9]+"/); e+=substr($0,RSTART+8,RLENGTH-9) }
+                END { printf "| Testes | Falhas | Erros |\n|---|---|---|\n| %d | %d | %d |\n\n", t, f, e }'
+            fi
+            if [ -f target/site/jacoco/jacoco.csv ]; then
+              awk -F, 'NR>1 && ($2 ~ /domain|application/) {mi+=$4; ci+=$5; ml+=$8; cl+=$9}
+                END {printf "**Cobertura dos domínios críticos:** linhas %.1f%% · instruções %.1f%% (mínimo 80%%)\n", 100*cl/(cl+ml), 100*ci/(ci+mi)}' \
+                target/site/jacoco/jacoco.csv
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publicar relatórios em caso de falha
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: diagnostico-falha
+          path: |
+            app/target/surefire-reports
+            app/target/site/jacoco
+          retention-days: 7
