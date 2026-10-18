@@ -44,6 +44,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -90,7 +91,8 @@ class CadastrosServiceTest {
         void naoDuplicaDocumento() {
             when(clientes.existsByDocumentoValor("52998224725")).thenReturn(true);
             ClienteService service = service();
-            assertThatThrownBy(() -> service.criar(new ClienteCommand("Ana", "52998224725", null, null)))
+            ClienteCommand duplicado = new ClienteCommand("Ana", "52998224725", null, null);
+            assertThatThrownBy(() -> service.criar(duplicado))
                     .isInstanceOf(DomainException.class);
         }
 
@@ -100,7 +102,8 @@ class CadastrosServiceTest {
             when(clientes.findById(cliente.getId())).thenReturn(Optional.of(cliente));
             when(veiculos.existsByClienteId(cliente.getId())).thenReturn(true);
             ClienteService service = service();
-            assertThatThrownBy(() -> service.remover(cliente.getId())).isInstanceOf(DomainException.class);
+            UUID idCliente = cliente.getId();
+            assertThatThrownBy(() -> service.remover(idCliente)).isInstanceOf(DomainException.class);
             verify(clientes, never()).delete(any());
         }
 
@@ -145,15 +148,18 @@ class CadastrosServiceTest {
         void validaPlacaDuplicadaClienteEVinculos() {
             VeiculoService service = service();
             when(veiculos.existsByPlacaValor("ABC1234")).thenReturn(true);
-            assertThatThrownBy(() -> service.criar(new VeiculoCommand("ABC1234", "VW", "Gol", 2010, dono.getId())))
+            VeiculoCommand placaDuplicada = new VeiculoCommand("ABC1234", "VW", "Gol", 2010, dono.getId());
+            assertThatThrownBy(() -> service.criar(placaDuplicada))
                     .isInstanceOf(DomainException.class);
-            assertThatThrownBy(() -> service.criar(new VeiculoCommand("XYZ9876", "VW", "Gol", 2010, UUID.randomUUID())))
+            VeiculoCommand clienteInexistente = new VeiculoCommand("XYZ9876", "VW", "Gol", 2010, UUID.randomUUID());
+            assertThatThrownBy(() -> service.criar(clienteInexistente))
                     .isInstanceOf(RecursoNaoEncontradoException.class);
 
             Veiculo v = new Veiculo(Placa.of("XYZ9876"), "VW", "Gol", 2010, dono.getId());
             when(veiculos.findById(v.getId())).thenReturn(Optional.of(v));
             when(ordens.existsByVeiculoId(v.getId())).thenReturn(true);
-            assertThatThrownBy(() -> service.remover(v.getId())).isInstanceOf(DomainException.class);
+            UUID idVeiculo = v.getId();
+            assertThatThrownBy(() -> service.remover(idVeiculo)).isInstanceOf(DomainException.class);
         }
     }
 
@@ -201,7 +207,7 @@ class CadastrosServiceTest {
 
             assertThat(p.getQuantidadeEstoque()).isEqualTo(2);
             ArgumentCaptor<MovimentacaoEstoque> captor = ArgumentCaptor.forClass(MovimentacaoEstoque.class);
-            verify(movimentacoes, org.mockito.Mockito.times(3)).save(captor.capture());
+            verify(movimentacoes, times(3)).save(captor.capture());
             assertThat(captor.getAllValues()).extracting(MovimentacaoEstoque::getTipo).containsExactly(
                     MovimentacaoEstoque.Tipo.ENTRADA, MovimentacaoEstoque.Tipo.ENTRADA, MovimentacaoEstoque.Tipo.SAIDA);
             verify(eventos).publicar(p);
@@ -225,7 +231,8 @@ class CadastrosServiceTest {
             verify(movimentacoes, never()).save(any());
 
             when(pecas.existsByCodigo("DUP")).thenReturn(true);
-            assertThatThrownBy(() -> service.criar(new PecaCommand("dup", "Item", null, TipoItemEstoque.INSUMO, BigDecimal.ONE, 0, 0)))
+            PecaCommand codigoDuplicado = new PecaCommand("dup", "Item", null, TipoItemEstoque.INSUMO, BigDecimal.ONE, 0, 0);
+            assertThatThrownBy(() -> service.criar(codigoDuplicado))
                     .isInstanceOf(DomainException.class);
         }
 
@@ -235,7 +242,8 @@ class CadastrosServiceTest {
             Peca p = new Peca("A", "A", null, TipoItemEstoque.PECA, BigDecimal.ONE, 1, 0);
             when(pecas.findById(p.getId())).thenReturn(Optional.of(p));
             UUID osId = UUID.randomUUID();
-            assertThatThrownBy(() -> service.baixarParaOrdemServico(p.getId(), 2, osId))
+            UUID idPeca = p.getId();
+            assertThatThrownBy(() -> service.baixarParaOrdemServico(idPeca, 2, osId))
                     .isInstanceOf(EstoqueInsuficienteException.class);
             UUID inexistente = UUID.randomUUID();
             assertThatThrownBy(() -> service.buscar(inexistente)).isInstanceOf(RecursoNaoEncontradoException.class);

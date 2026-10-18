@@ -79,8 +79,10 @@ class OrdemServicoTest {
     @Test
     void quantidadeDosItensDeveSerPositiva() {
         OrdemServico os = OrdemServico.abrir(clienteId, veiculoId, null);
-        assertThatThrownBy(() -> os.adicionarServico(UUID.randomUUID(), "x", BigDecimal.ONE, 0)).isInstanceOf(DomainException.class);
-        assertThatThrownBy(() -> os.adicionarPeca(UUID.randomUUID(), "x", TipoItemEstoque.PECA, BigDecimal.ONE, 0))
+        UUID servicoId = UUID.randomUUID();
+        UUID pecaId = UUID.randomUUID();
+        assertThatThrownBy(() -> os.adicionarServico(servicoId, "x", BigDecimal.ONE, 0)).isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> os.adicionarPeca(pecaId, "x", TipoItemEstoque.PECA, BigDecimal.ONE, 0))
                 .isInstanceOf(DomainException.class);
     }
 
@@ -170,8 +172,10 @@ class OrdemServicoTest {
     void naoPermiteAlterarItensAposEnvioDoOrcamento() {
         OrdemServico os = osAguardandoAprovacao();
         UUID itemId = os.getItensServico().getFirst().getId();
-        assertThatThrownBy(() -> os.adicionarServico(UUID.randomUUID(), "x", BigDecimal.ONE, 1)).isInstanceOf(DomainException.class);
-        assertThatThrownBy(() -> os.adicionarPeca(UUID.randomUUID(), "x", TipoItemEstoque.PECA, BigDecimal.ONE, 1))
+        UUID servicoId = UUID.randomUUID();
+        UUID pecaId = UUID.randomUUID();
+        assertThatThrownBy(() -> os.adicionarServico(servicoId, "x", BigDecimal.ONE, 1)).isInstanceOf(DomainException.class);
+        assertThatThrownBy(() -> os.adicionarPeca(pecaId, "x", TipoItemEstoque.PECA, BigDecimal.ONE, 1))
                 .isInstanceOf(DomainException.class);
         assertThatThrownBy(() -> os.removerItemServico(itemId)).isInstanceOf(DomainException.class);
     }

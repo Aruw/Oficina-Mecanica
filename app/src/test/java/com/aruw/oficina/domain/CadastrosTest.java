@@ -44,7 +44,7 @@ class CadastrosTest {
         assertThat(veiculo.getAno()).isEqualTo(2015);
         assertThat(veiculo.getCriadoEm()).isNotNull();
 
-        int proximoAno = Year.now().getValue() + 1;
+        int proximoAno = Year.now(Veiculo.FUSO_HORARIO).getValue() + 1;
         Placa placa = Placa.of("ABC1234");
         assertThatThrownBy(() -> new Veiculo(null, "a", "b", 2000, clienteId)).hasMessageContaining("Placa");
         assertThatThrownBy(() -> new Veiculo(placa, "", "b", 2000, clienteId)).hasMessageContaining("Marca");

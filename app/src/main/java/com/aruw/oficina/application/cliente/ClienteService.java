@@ -37,13 +37,17 @@ public class ClienteService {
 
     @Transactional
     public Cliente atualizar(UUID id, ClienteCommand cmd) {
-        Cliente cliente = buscar(id);
+        Cliente cliente = obter(id);
         cliente.atualizar(cmd.nome(), cmd.email(), cmd.telefone());
         return clientes.save(cliente);
     }
 
     @Transactional(readOnly = true)
     public Cliente buscar(UUID id) {
+        return obter(id);
+    }
+
+    private Cliente obter(UUID id) {
         return clientes.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Cliente", id));
     }
 
@@ -61,7 +65,7 @@ public class ClienteService {
 
     @Transactional
     public void remover(UUID id) {
-        Cliente cliente = buscar(id);
+        Cliente cliente = obter(id);
         if (veiculos.existsByClienteId(id) || ordens.existsByClienteId(id)) {
             throw new DomainException("Cliente possui veículos ou ordens de serviço vinculados e não pode ser removido");
         }

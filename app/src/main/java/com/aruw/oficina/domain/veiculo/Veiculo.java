@@ -11,6 +11,7 @@ import jakarta.persistence.Table;
 
 import java.time.Instant;
 import java.time.Year;
+import java.time.ZoneId;
 import java.util.UUID;
 
 @Entity
@@ -18,6 +19,7 @@ import java.util.UUID;
 public class Veiculo extends AggregateRoot {
 
     static final int ANO_MINIMO = 1900;
+    public static final ZoneId FUSO_HORARIO = ZoneId.of("America/Sao_Paulo");
 
     @Id
     private UUID id;
@@ -60,7 +62,7 @@ public class Veiculo extends AggregateRoot {
         if (modelo == null || modelo.isBlank()) {
             throw new DomainException("Modelo do veículo é obrigatório");
         }
-        int anoMaximo = Year.now().getValue() + 1;
+        int anoMaximo = Year.now(FUSO_HORARIO).getValue() + 1;
         if (ano < ANO_MINIMO || ano > anoMaximo) {
             throw new DomainException("Ano do veículo deve estar entre " + ANO_MINIMO + " e " + anoMaximo);
         }
