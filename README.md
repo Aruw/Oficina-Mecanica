@@ -53,7 +53,7 @@ e **Identidade e Acesso**.
 
 Java 21 · Spring Boot 3.5 (Web, Data JPA, Validation, Security, OAuth2 Resource Server/JWT, Actuator) ·
 PostgreSQL 16 · Flyway · springdoc-openapi (Swagger UI) · JUnit 5, Mockito, AssertJ, MockMvc, H2 · JaCoCo ·
-Docker / Docker Compose · GitHub Actions (CI, CodeQL, PMD, Trivy, Release com GHCR) · Dependabot.
+Docker / Docker Compose · GitHub Actions (CI, CodeQL, PMD, Trivy, Release com GHCR).
 
 ## Banco de dados — decisão
 
@@ -188,7 +188,7 @@ Dados de demonstração carregados pelo Flyway: serviços *Troca de óleo*, *Ali
 │   ├── api/                           # roteiro de chamadas .http
 │   ├── entrega/                       # roteiro do PDF e do vídeo
 │   └── arquitetura.md
-├── .github/                           # workflows (CI, segurança), dependabot, template de PR
+├── .github/                           # workflows (validate, develop, release)
 ├── docker-compose.yml
 └── .env.example
 ```
