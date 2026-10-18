@@ -29,6 +29,13 @@
         <jacoco.minimo>0.80</jacoco.minimo>
         <pmd-plugin.version>3.28.0</pmd-plugin.version>
         <versions-plugin.version>2.23.0</versions-plugin.version>
+        <sonar-plugin.version>5.8.0.7211</sonar-plugin.version>
+
+        <sonar.host.url>https://sonarcloud.io</sonar.host.url>
+        <sonar.organization>aruw</sonar.organization>
+        <sonar.projectKey>Aruw_Oficina-Mecanica</sonar.projectKey>
+        <sonar.projectName>Oficina Mecânica API</sonar.projectName>
+        <sonar.coverage.jacoco.xmlReportPaths>${project.build.directory}/site/jacoco/jacoco.xml</sonar.coverage.jacoco.xmlReportPaths>
     </properties>
 
     <dependencies>
@@ -118,6 +125,11 @@
                     <linkXRef>false</linkXRef>
                     <printFailingErrors>true</printFailingErrors>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.sonarsource.scanner.maven</groupId>
+                <artifactId>sonar-maven-plugin</artifactId>
+                <version>${sonar-plugin.version}</version>
             </plugin>
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>

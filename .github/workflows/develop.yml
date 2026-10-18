@@ -23,16 +23,34 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      - name: Compilar, testar e validar cobertura (>= 80%)
-        run: mvn -B verify
+      - name: Build (compilação do código e dos testes)
+        run: mvn -B test-compile
+
+      - name: Testes unitários
+        run: mvn -B test -Dtest='**/*Test*' -Dsurefire.failIfNoSpecifiedTests=false
+
+      - name: Testes de integração
+        run: mvn -B test -Dtest='**/*IT' -Dsurefire.failIfNoSpecifiedTests=false
+
+      - name: Relatório de cobertura (JaCoCo)
+        if: success() || failure()
+        run: mvn -B jacoco:report
+
+      - name: Cobertura mínima de 80% (domain + application)
+        run: mvn -B jacoco:check@check
+
+      - name: Empacotar aplicação (jar)
+        run: mvn -B package -DskipTests -Djacoco.skip=true
 
       - name: Resumo dos testes e da cobertura
         if: always()
@@ -75,16 +93,31 @@ jobs:
           retention-days: 14
 
   analise-estatica:
-    name: Análise estática (CodeQL + PMD)
+    name: Análise estática (CodeQL, PMD e Sonar)
     runs-on: ubuntu-latest
+    needs: build-testes
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_ORGANIZATION: ${{ vars.SONAR_ORGANIZATION }}
+      SONAR_PROJECT_KEY: ${{ vars.SONAR_PROJECT_KEY }}
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout (histórico completo para o Sonar)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - uses: actions/setup-java@v4
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
+
+      - name: Baixar relatório de cobertura
+        uses: actions/download-artifact@v4
+        with:
+          name: cobertura-jacoco
+          path: app/target/site/jacoco
 
       - name: Inicializar CodeQL
         uses: github/codeql-action/init@v3
@@ -93,19 +126,36 @@ jobs:
           build-mode: manual
           queries: security-and-quality
 
-      - name: Compilar
+      - name: Build
         working-directory: app
-        run: mvn -B -q compile -DskipTests
+        run: mvn -B -q test-compile
 
-      - name: Analisar com CodeQL
+      - name: CodeQL — análise de segurança e qualidade
         uses: github/codeql-action/analyze@v3
         with:
           category: codeql-java
           output: codeql-resultados
 
-      - name: PMD (boas práticas) e CPD (código duplicado)
+      - name: PMD — boas práticas
         working-directory: app
-        run: mvn -B pmd:pmd pmd:cpd
+        run: mvn -B pmd:pmd
+
+      - name: CPD — código duplicado
+        working-directory: app
+        run: mvn -B pmd:cpd
+
+      - name: SonarQube Cloud — qualidade, cobertura e code smells
+        if: env.SONAR_TOKEN != ''
+        working-directory: app
+        run: |
+          ARGS=()
+          [ -n "$SONAR_ORGANIZATION" ] && ARGS+=("-Dsonar.organization=$SONAR_ORGANIZATION")
+          [ -n "$SONAR_PROJECT_KEY" ] && ARGS+=("-Dsonar.projectKey=$SONAR_PROJECT_KEY")
+          mvn -B sonar:sonar "${ARGS[@]}"
+
+      - name: SonarQube Cloud — não configurado
+        if: env.SONAR_TOKEN == ''
+        run: echo "::notice::Análise do SonarQube Cloud ignorada. Cadastre o secret SONAR_TOKEN para habilitá-la (veja docs/processo/github.md)."
 
       - name: Resumo da análise estática
         if: always()
@@ -113,6 +163,7 @@ jobs:
           violacoes=$(grep -c '<violation' app/target/pmd.xml 2>/dev/null || true)
           duplicacoes=$(grep -c '<duplication' app/target/cpd.xml 2>/dev/null || true)
           alertas=$(cat codeql-resultados/*.sarif 2>/dev/null | grep -o '"ruleId"' | wc -l)
+          if [ -n "$SONAR_TOKEN" ]; then sonar="[ver painel](https://sonarcloud.io/project/overview?id=${SONAR_PROJECT_KEY:-Aruw_Oficina-Mecanica})"; else sonar="não configurado"; fi
           {
             echo "### Análise estática"
             echo "| Ferramenta | Achados |"
@@ -120,6 +171,7 @@ jobs:
             echo "| CodeQL (security-and-quality) | ${alertas:-0} |"
             echo "| PMD — violações | ${violacoes:-0} |"
             echo "| CPD — trechos duplicados | ${duplicacoes:-0} |"
+            echo "| SonarQube Cloud | $sonar |"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Artefato — análise estática
@@ -137,10 +189,11 @@ jobs:
     name: Vulnerabilidades (Trivy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - name: Dependências, segredos e configuração (relatório)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+      - name: Trivy — dependências, segredos e configuração
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -152,23 +205,23 @@ jobs:
       - name: Build da imagem Docker
         run: docker build -t oficina-api:${{ github.sha }} app
 
-      - name: Imagem Docker (relatório)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+      - name: Trivy — imagem Docker (relatório)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: oficina-api:${{ github.sha }}
           severity: CRITICAL,HIGH,MEDIUM
           format: table
           output: trivy-imagem.txt
 
-      - name: Imagem Docker (SARIF para o GitHub Code Scanning)
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+      - name: Trivy — imagem Docker (SARIF)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: oficina-api:${{ github.sha }}
           severity: CRITICAL,HIGH
           format: sarif
           output: trivy-imagem.sarif
 
-      - name: Enviar SARIF ao Code Scanning
+      - name: Enviar resultado ao GitHub Code Scanning
         if: always()
         uses: github/codeql-action/upload-sarif@v3
         with:
@@ -192,3 +245,35 @@ jobs:
             trivy-repositorio.txt
             trivy-imagem.txt
             trivy-imagem.sarif
+
+  publicar-snapshot:
+    name: Publicar snapshot no Nexus
+    runs-on: ubuntu-latest
+    needs: [build-testes, analise-estatica, vulnerabilidades]
+    # Exemplo do fluxo ideal: só roda quando a variável NEXUS_URL estiver cadastrada no repositório.
+    if: vars.NEXUS_URL != ''
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 21 e credenciais do Nexus
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          server-id: nexus
+          server-username: NEXUS_USERNAME
+          server-password: NEXUS_PASSWORD
+
+      - name: Deploy do SNAPSHOT (maven-snapshots)
+        env:
+          NEXUS_URL: ${{ vars.NEXUS_URL }}
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+        run: >
+          mvn -B deploy -DskipTests -Djacoco.skip=true
+          "-DaltSnapshotDeploymentRepository=nexus::${NEXUS_URL}/repository/maven-snapshots/"
