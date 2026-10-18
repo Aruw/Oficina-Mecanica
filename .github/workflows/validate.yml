@@ -4,7 +4,6 @@ on:
   push:
     branches-ignore:
       - develop
-      - main
   workflow_dispatch:
 
 permissions:
@@ -15,8 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build:
-    name: Build
+  build-testes:
+    name: Build, testes e cobertura
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -32,39 +31,8 @@ jobs:
           java-version: '21'
           cache: maven
 
-      - name: Compilar código e testes
+      - name: Build (compilação do código e dos testes)
         run: mvn -B test-compile
-
-      - name: Artefato — código compilado
-        uses: actions/upload-artifact@v4
-        with:
-          name: build
-          path: app/target
-          retention-days: 1
-
-  testes:
-    name: Testes
-    runs-on: ubuntu-latest
-    needs: build
-    defaults:
-      run:
-        working-directory: app
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configurar Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-
-      - name: Baixar código compilado
-        uses: actions/download-artifact@v4
-        with:
-          name: build
-          path: app/target
 
       - name: Testes unitários
         run: mvn -B test -Dtest='**/*Test*' -Dsurefire.failIfNoSpecifiedTests=false
@@ -72,76 +40,38 @@ jobs:
       - name: Testes de integração
         run: mvn -B test -Dtest='**/*IT' -Dsurefire.failIfNoSpecifiedTests=false
 
-      - name: Resumo dos testes
-        if: always()
-        run: |
-          [ -d target/surefire-reports ] || exit 0
-          cat target/surefire-reports/TEST-*.xml | grep -o '<testsuite [^>]*>' | awk '
-            { match($0,/tests="[0-9]+"/); t+=substr($0,RSTART+7,RLENGTH-8)
-              match($0,/failures="[0-9]+"/); f+=substr($0,RSTART+10,RLENGTH-11)
-              match($0,/errors="[0-9]+"/); e+=substr($0,RSTART+8,RLENGTH-9) }
-            END { printf "### Testes — `%s`\n| Testes | Falhas | Erros |\n|---|---|---|\n| %d | %d | %d |\n", ENVIRON["GITHUB_REF_NAME"], t, f, e }' \
-            >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Artefato — dados de cobertura
-        uses: actions/upload-artifact@v4
-        with:
-          name: execucao-testes
-          path: |
-            app/target/classes
-            app/target/jacoco.exec
-          retention-days: 1
-
-      - name: Artefato — diagnóstico da falha
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: diagnostico-testes
-          path: app/target/surefire-reports
-          retention-days: 7
-
-  cobertura:
-    name: Cobertura
-    runs-on: ubuntu-latest
-    needs: testes
-    defaults:
-      run:
-        working-directory: app
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Configurar Java 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: '21'
-          cache: maven
-
-      - name: Baixar dados de cobertura
-        uses: actions/download-artifact@v4
-        with:
-          name: execucao-testes
-          path: app/target
-
       - name: Relatório de cobertura (JaCoCo)
+        if: success() || failure()
         run: mvn -B jacoco:report
 
       - name: Cobertura mínima de 80% (domain + application)
         run: mvn -B jacoco:check@check
 
-      - name: Resumo da cobertura
+      - name: Resumo
         if: always()
         run: |
-          [ -f target/site/jacoco/jacoco.csv ] || exit 0
-          awk -F, 'NR>1 && ($2 ~ /domain|application/) {mi+=$4; ci+=$5; ml+=$8; cl+=$9}
-            END {printf "### Cobertura dos domínios críticos\nlinhas %.1f%% · instruções %.1f%% (mínimo 80%%)\n", 100*cl/(cl+ml), 100*ci/(ci+mi)}' \
-            target/site/jacoco/jacoco.csv >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "### Resultado — \`${GITHUB_REF_NAME}\`"
+            if [ -d target/surefire-reports ]; then
+              cat target/surefire-reports/TEST-*.xml | grep -o '<testsuite [^>]*>' | awk '
+                { match($0,/tests="[0-9]+"/); t+=substr($0,RSTART+7,RLENGTH-8)
+                  match($0,/failures="[0-9]+"/); f+=substr($0,RSTART+10,RLENGTH-11)
+                  match($0,/errors="[0-9]+"/); e+=substr($0,RSTART+8,RLENGTH-9) }
+                END { printf "| Testes | Falhas | Erros |\n|---|---|---|\n| %d | %d | %d |\n\n", t, f, e }'
+            fi
+            if [ -f target/site/jacoco/jacoco.csv ]; then
+              awk -F, 'NR>1 && ($2 ~ /domain|application/) {mi+=$4; ci+=$5; ml+=$8; cl+=$9}
+                END {printf "**Cobertura dos domínios críticos:** linhas %.1f%% · instruções %.1f%% (mínimo 80%%)\n", 100*cl/(cl+ml), 100*ci/(ci+mi)}' \
+                target/site/jacoco/jacoco.csv
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Artefato — relatório de cobertura
-        if: always()
+      - name: Artefato — diagnóstico da falha
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: cobertura-jacoco
-          path: app/target/site/jacoco
+          name: diagnostico-falha
+          path: |
+            app/target/surefire-reports
+            app/target/site/jacoco
           retention-days: 7
