@@ -10,7 +10,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: validate-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -21,16 +21,31 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-java@v4
+      - name: Configurar Java 21
+        uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
-      - name: Compilar, testar e validar cobertura
-        run: mvn -B verify
+      - name: Build (compilação do código e dos testes)
+        run: mvn -B test-compile
+
+      - name: Testes unitários
+        run: mvn -B test -Dtest='**/*Test*' -Dsurefire.failIfNoSpecifiedTests=false
+
+      - name: Testes de integração
+        run: mvn -B test -Dtest='**/*IT' -Dsurefire.failIfNoSpecifiedTests=false
+
+      - name: Relatório de cobertura (JaCoCo)
+        if: success() || failure()
+        run: mvn -B jacoco:report
+
+      - name: Cobertura mínima de 80% (domain + application)
+        run: mvn -B jacoco:check@check
 
       - name: Resumo
         if: always()
@@ -51,7 +66,7 @@ jobs:
             fi
           } >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Publicar relatórios em caso de falha
+      - name: Artefato — diagnóstico da falha
         if: failure()
         uses: actions/upload-artifact@v4
         with:
