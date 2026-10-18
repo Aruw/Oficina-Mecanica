@@ -12,6 +12,7 @@ permissions:
   contents: write
   packages: write
   pull-requests: write
+  actions: write
 
 concurrency:
   group: release
@@ -36,15 +37,12 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Configurar Java 21 e credenciais do Nexus
+      - name: Configurar Java 21
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
-          server-id: nexus
-          server-username: NEXUS_USERNAME
-          server-password: NEXUS_PASSWORD
 
       - name: Definir versão da release e próxima versão
         id: versao
@@ -97,17 +95,6 @@ jobs:
 
       - name: Empacotar aplicação (jar)
         run: mvn -B package -DskipTests -Djacoco.skip=true
-
-      - name: Publicar no Nexus (maven-releases)
-        # Exemplo do fluxo ideal: só roda quando a variável NEXUS_URL estiver cadastrada no repositório.
-        if: vars.NEXUS_URL != ''
-        env:
-          NEXUS_URL: ${{ vars.NEXUS_URL }}
-          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
-          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
-        run: >
-          mvn -B deploy -DskipTests -Djacoco.skip=true
-          "-DaltReleaseDeploymentRepository=nexus::${NEXUS_URL}/repository/maven-releases/"
 
       - name: Login no GitHub Container Registry
         run: echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
@@ -166,6 +153,40 @@ jobs:
             "cobertura-jacoco-$VERSAO.zip" \
             "resultado-testes-$VERSAO.zip"
 
+  publicar-release:
+    name: Publicar release no Nexus
+    runs-on: ubuntu-latest
+    needs: release
+    # Exemplo do fluxo ideal: só roda quando a variável NEXUS_URL estiver cadastrada no repositório.
+    if: vars.NEXUS_URL != ''
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - name: Checkout da tag da release
+        uses: actions/checkout@v4
+        with:
+          ref: v${{ needs.release.outputs.versao }}
+
+      - name: Configurar Java 21 e credenciais do Nexus
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          server-id: nexus
+          server-username: NEXUS_USERNAME
+          server-password: NEXUS_PASSWORD
+
+      - name: Deploy da release (maven-releases)
+        env:
+          NEXUS_URL: ${{ vars.NEXUS_URL }}
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+        run: >
+          mvn -B deploy -DskipTests -Djacoco.skip=true
+          "-DaltReleaseDeploymentRepository=nexus::${NEXUS_URL}/repository/maven-releases/"
+
   proxima-versao:
     name: Próxima versão
     runs-on: ubuntu-latest
@@ -220,6 +241,33 @@ jobs:
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "PR: $URL" >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Executar 🔍 Validate na branch e aguardar
+        # Push feito pelo GITHUB_TOKEN não dispara workflows; o disparo manual (workflow_dispatch) é a exceção.
+        # Com o RELEASE_TOKEN o push já disparou o Validate, então apenas aguarda essa execução.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
+        run: |
+          if [ -z "$RELEASE_TOKEN" ]; then
+            gh workflow run validate.yml --ref "$BRANCH"
+            EVENTO=workflow_dispatch
+          else
+            EVENTO=push
+          fi
+          ID=""
+          for _ in $(seq 1 30); do
+            ID=$(gh run list --workflow validate.yml --branch "$BRANCH" --event "$EVENTO" --limit 1               --json databaseId --jq '.[0].databaseId // empty')
+            [ -n "$ID" ] && break
+            sleep 5
+          done
+          if [ -z "$ID" ]; then
+            echo "::error::A execução do 🔍 Validate na branch $BRANCH não foi encontrada."
+            exit 1
+          fi
+          echo "🔍 Validate: https://github.com/${GH_REPO}/actions/runs/$ID" >> "$GITHUB_STEP_SUMMARY"
+          gh run watch "$ID" --exit-status --interval 15
+
       - name: Aprovar Pull Request
         # Quem abre o PR não pode aprová-lo. Com o PAT, o autor é o dono do token e o github-actions aprova.
         if: env.RELEASE_TOKEN != ''
@@ -227,15 +275,16 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh pr review "${{ steps.pr.outputs.url }}" --approve --body "Atualização automática de versão após a release v$VERSAO."
 
-      - name: Merge automático
+      - name: Merge do Pull Request
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
         run: |
           PR="${{ steps.pr.outputs.url }}"
-          if gh pr merge "$PR" --squash --delete-branch --auto; then
-            echo "Auto-merge habilitado: o PR será mergeado assim que os checks obrigatórios passarem." >> "$GITHUB_STEP_SUMMARY"
-          elif gh pr merge "$PR" --squash --delete-branch; then
-            echo "PR mergeado." >> "$GITHUB_STEP_SUMMARY"
+          if gh pr merge "$PR" --squash --delete-branch; then
+            echo "PR mergeado na develop." >> "$GITHUB_STEP_SUMMARY"
+          elif gh pr merge "$PR" --squash --delete-branch --auto; then
+            echo "Auto-merge habilitado: o PR será mergeado assim que as regras forem atendidas." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "::warning::Não foi possível mergear o PR automaticamente. Verifique as configurações em docs/processo/github.md ou faça o merge de $PR manualmente."
+            echo "::error::Não foi possível mergear $PR. Verifique as regras da develop (docs/processo/github.md)."
+            exit 1
           fi
