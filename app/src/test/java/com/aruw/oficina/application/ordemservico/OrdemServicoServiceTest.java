@@ -127,7 +127,8 @@ class OrdemServicoServiceTest {
     @Test
     void exigeNomeParaClienteNaoCadastrado() {
         when(clientes.findByDocumentoValor(CPF)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.abrir(comando(null, 2020, 1)))
+        AbrirOrdemServicoCommand semNome = comando(null, 2020, 1);
+        assertThatThrownBy(() -> service.abrir(semNome))
                 .isInstanceOf(RecursoNaoEncontradoException.class)
                 .hasMessageContaining("não cadastrado");
     }
@@ -136,12 +137,14 @@ class OrdemServicoServiceTest {
     void exigeDadosParaVeiculoNaoCadastrado() {
         when(clientes.findByDocumentoValor(CPF)).thenReturn(Optional.of(cliente));
         when(veiculos.findByPlacaValor("ABC1D23")).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.abrir(comando(null, null, 1))).isInstanceOf(DomainException.class);
+        AbrirOrdemServicoCommand semDadosDoVeiculo = comando(null, null, 1);
+        assertThatThrownBy(() -> service.abrir(semDadosDoVeiculo)).isInstanceOf(DomainException.class);
     }
 
     @Test
     void exigeDadosDoClienteEVeiculo() {
-        assertThatThrownBy(() -> service.abrir(new AbrirOrdemServicoCommand(null, null, null, null, null)))
+        AbrirOrdemServicoCommand vazio = new AbrirOrdemServicoCommand(null, null, null, null, null);
+        assertThatThrownBy(() -> service.abrir(vazio))
                 .isInstanceOf(DomainException.class);
     }
 
@@ -157,25 +160,30 @@ class OrdemServicoServiceTest {
     void recusaPecaSemEstoqueSuficiente() {
         when(clientes.findByDocumentoValor(CPF)).thenReturn(Optional.of(cliente));
         when(veiculos.findByPlacaValor("ABC1D23")).thenReturn(Optional.of(veiculo));
-        assertThatThrownBy(() -> service.abrir(comando(null, null, 11))).isInstanceOf(EstoqueInsuficienteException.class);
+        AbrirOrdemServicoCommand semEstoque = comando(null, null, 11);
+        assertThatThrownBy(() -> service.abrir(semEstoque)).isInstanceOf(EstoqueInsuficienteException.class);
     }
 
     @Test
     void consideraQuantidadeJaIncluidaNaVerificacaoDeEstoque() {
         OrdemServico os = osRegistrada();
-        service.adicionarPeca(os.getId(), peca.getId(), 6);
-        assertThatThrownBy(() -> service.adicionarPeca(os.getId(), peca.getId(), 5))
+        UUID idOs = os.getId();
+        UUID idPeca = peca.getId();
+        service.adicionarPeca(idOs, idPeca, 6);
+        assertThatThrownBy(() -> service.adicionarPeca(idOs, idPeca, 5))
                 .isInstanceOf(EstoqueInsuficienteException.class);
     }
 
     @Test
     void recusaServicoInativoOuInexistente() {
         OrdemServico os = osRegistrada();
+        UUID idOs = os.getId();
+        UUID idServico = servico.getId();
         servico.desativar();
-        assertThatThrownBy(() -> service.adicionarServico(os.getId(), servico.getId(), 1)).hasMessageContaining("inativo");
+        assertThatThrownBy(() -> service.adicionarServico(idOs, idServico, 1)).hasMessageContaining("inativo");
         UUID inexistente = UUID.randomUUID();
         when(servicos.findById(inexistente)).thenReturn(Optional.empty());
-        assertThatThrownBy(() -> service.adicionarServico(os.getId(), inexistente, 1))
+        assertThatThrownBy(() -> service.adicionarServico(idOs, inexistente, 1))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
     }
 
@@ -210,14 +218,15 @@ class OrdemServicoServiceTest {
         service.gerarOrcamento(os.getId());
         doThrow(new EstoqueInsuficienteException("OLEO", 0, 2)).when(pecaService).baixarParaOrdemServico(any(), anyInt(), any());
 
-        assertThatThrownBy(() -> service.aprovarOrcamento(os.getId())).isInstanceOf(EstoqueInsuficienteException.class);
+        UUID idOs = os.getId();
+        assertThatThrownBy(() -> service.aprovarOrcamento(idOs)).isInstanceOf(EstoqueInsuficienteException.class);
     }
 
     @Test
     void removeItensERejeitaOrcamento() {
         OrdemServico os = osRegistrada();
-        OrdemServicoDetalhe d = service.adicionarServico(os.getId(), servico.getId(), 1);
-        d = service.adicionarPeca(os.getId(), peca.getId(), 1);
+        service.adicionarServico(os.getId(), servico.getId(), 1);
+        OrdemServicoDetalhe d = service.adicionarPeca(os.getId(), peca.getId(), 1);
         d = service.removerPeca(os.getId(), d.pecas().getFirst().id());
         assertThat(d.pecas()).isEmpty();
         service.adicionarServico(os.getId(), servico.getId(), 1);
@@ -255,7 +264,8 @@ class OrdemServicoServiceTest {
     @Test
     void documentoDiferenteNaoEnxergaOs() {
         OrdemServico os = osRegistrada();
-        assertThatThrownBy(() -> service.consultarPeloCliente(os.getId(), "11144477735"))
+        UUID idOs = os.getId();
+        assertThatThrownBy(() -> service.consultarPeloCliente(idOs, "11144477735"))
                 .isInstanceOf(RecursoNaoEncontradoException.class);
     }
 

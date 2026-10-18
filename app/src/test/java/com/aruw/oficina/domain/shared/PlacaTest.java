@@ -21,7 +21,7 @@ class PlacaTest {
     void aceitaPlacaMercosul() {
         Placa placa = Placa.of("BRA2E19");
         assertThat(placa.isMercosul()).isTrue();
-        assertThat(placa.toString()).isEqualTo("BRA2E19");
+        assertThat(placa).hasToString("BRA2E19");
     }
 
     @ParameterizedTest

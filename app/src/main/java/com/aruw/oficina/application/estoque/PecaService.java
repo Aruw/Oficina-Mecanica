@@ -42,14 +42,14 @@ public class PecaService {
 
     @Transactional
     public Peca atualizar(UUID id, PecaCommand cmd) {
-        Peca peca = buscar(id);
+        Peca peca = obter(id);
         peca.atualizar(cmd.nome(), cmd.descricao(), cmd.tipo(), cmd.precoUnitario(), cmd.estoqueMinimo());
         return pecas.save(peca);
     }
 
     @Transactional
     public Peca registrarEntrada(UUID id, int quantidade, String motivo) {
-        Peca peca = buscar(id);
+        Peca peca = obter(id);
         peca.darEntrada(quantidade);
         movimentacoes.save(MovimentacaoEstoque.entrada(id, quantidade, motivo));
         return pecas.save(peca);
@@ -57,7 +57,7 @@ public class PecaService {
 
     @Transactional
     public void baixarParaOrdemServico(UUID pecaId, int quantidade, UUID ordemServicoId) {
-        Peca peca = buscar(pecaId);
+        Peca peca = obter(pecaId);
         peca.darBaixa(quantidade);
         movimentacoes.save(MovimentacaoEstoque.saidaPorOrdemServico(pecaId, quantidade, ordemServicoId));
         pecas.save(peca);
@@ -66,6 +66,10 @@ public class PecaService {
 
     @Transactional(readOnly = true)
     public Peca buscar(UUID id) {
+        return obter(id);
+    }
+
+    private Peca obter(UUID id) {
         return pecas.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Peça/insumo", id));
     }
 
@@ -77,12 +81,12 @@ public class PecaService {
 
     @Transactional(readOnly = true)
     public List<MovimentacaoEstoque> movimentacoes(UUID pecaId) {
-        buscar(pecaId);
+        obter(pecaId);
         return movimentacoes.findByPecaIdOrderByDataHoraDesc(pecaId);
     }
 
     @Transactional
     public void remover(UUID id) {
-        pecas.delete(buscar(id));
+        pecas.delete(obter(id));
     }
 }

@@ -27,7 +27,7 @@ public class ServicoService {
 
     @Transactional
     public Servico atualizar(UUID id, ServicoCommand cmd) {
-        Servico servico = buscar(id);
+        Servico servico = obter(id);
         servico.atualizar(cmd.nome(), cmd.descricao(), cmd.preco(), cmd.tempoEstimadoMinutos());
         aplicarAtivo(servico, cmd.ativo());
         return servicos.save(servico);
@@ -43,6 +43,10 @@ public class ServicoService {
 
     @Transactional(readOnly = true)
     public Servico buscar(UUID id) {
+        return obter(id);
+    }
+
+    private Servico obter(UUID id) {
         return servicos.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Serviço", id));
     }
 
@@ -53,6 +57,6 @@ public class ServicoService {
 
     @Transactional
     public void remover(UUID id) {
-        servicos.delete(buscar(id));
+        servicos.delete(obter(id));
     }
 }
