@@ -289,3 +289,37 @@ jobs:
         run: >
           mvn -B deploy -DskipTests -Djacoco.skip=true
           "-DaltSnapshotDeploymentRepository=nexus::${NEXUS_URL}/repository/maven-snapshots/"
+
+  excluir-branch:
+    name: Excluir branch mergeada
+    runs-on: ubuntu-latest
+    needs: [build-testes, analise-estatica, vulnerabilidades, publicar-snapshot]
+    # Só depois que todos os jobs terminarem sem falha (jobs opcionais pulados não bloqueiam).
+    if: >
+      github.event_name == 'push' && !cancelled() &&
+      !contains(needs.*.result, 'failure')
+    permissions:
+      contents: write
+      pull-requests: read
+    steps:
+      - name: Excluir a branch de origem do PR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mapfile -t BRANCHES < <(gh api "repos/${GITHUB_REPOSITORY}/commits/${GITHUB_SHA}/pulls" \
+            --jq ".[] | select(.merged_at != null and .base.ref == \"develop\" and .head.repo.full_name == \"${GITHUB_REPOSITORY}\") | .head.ref")
+          if [ "${#BRANCHES[@]}" -eq 0 ]; then
+            echo "Nenhum PR mergeado associado a este commit; nada a excluir." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          for BRANCH in "${BRANCHES[@]}"; do
+            case "$BRANCH" in main|develop) continue ;; esac
+            if gh api -X DELETE "repos/${GITHUB_REPOSITORY}/git/refs/heads/${BRANCH}" --silent 2>erro.txt; then
+              echo "Branch \`$BRANCH\` excluída após o pipeline da develop passar." >> "$GITHUB_STEP_SUMMARY"
+            elif grep -q "Reference does not exist" erro.txt; then
+              echo "Branch \`$BRANCH\` já havia sido excluída." >> "$GITHUB_STEP_SUMMARY"
+            else
+              cat erro.txt
+              exit 1
+            fi
+          done
