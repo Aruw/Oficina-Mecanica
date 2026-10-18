@@ -13,6 +13,7 @@ permissions:
   packages: write
   pull-requests: write
   actions: write
+  statuses: write
 
 concurrency:
   group: release
@@ -226,6 +227,7 @@ jobs:
           {
             echo "base=$BASE"
             echo "branch=$BRANCH"
+            echo "sha=$(git rev-parse HEAD)"
           } >> "$GITHUB_OUTPUT"
 
       - name: Abrir Pull Request
@@ -242,8 +244,9 @@ jobs:
           echo "PR: $URL" >> "$GITHUB_STEP_SUMMARY"
 
       - name: Executar 🔍 Validate na branch e aguardar
-        # Push feito pelo GITHUB_TOKEN não dispara workflows; o disparo manual (workflow_dispatch) é a exceção.
-        # Com o RELEASE_TOKEN o push já disparou o Validate, então apenas aguarda essa execução.
+        id: validate
+        # Sem RELEASE_TOKEN, o push do bot não dispara workflows: o Validate é executado manualmente (workflow_dispatch).
+        # Com RELEASE_TOKEN, o próprio push já disparou o Validate; só aguarda essa execução.
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -257,7 +260,8 @@ jobs:
           fi
           ID=""
           for _ in $(seq 1 30); do
-            ID=$(gh run list --workflow validate.yml --branch "$BRANCH" --event "$EVENTO" --limit 1               --json databaseId --jq '.[0].databaseId // empty')
+            ID=$(gh run list --workflow validate.yml --branch "$BRANCH" --event "$EVENTO" \
+              --limit 1 --json databaseId --jq '.[0].databaseId // empty')
             [ -n "$ID" ] && break
             sleep 5
           done
@@ -265,8 +269,25 @@ jobs:
             echo "::error::A execução do 🔍 Validate na branch $BRANCH não foi encontrada."
             exit 1
           fi
-          echo "🔍 Validate: https://github.com/${GH_REPO}/actions/runs/$ID" >> "$GITHUB_STEP_SUMMARY"
+          URL="https://github.com/${GH_REPO}/actions/runs/$ID"
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+          echo "🔍 Validate: $URL" >> "$GITHUB_STEP_SUMMARY"
           gh run watch "$ID" --exit-status --interval 15
+
+      - name: Registrar o check Cobertura no PR
+        # Execuções manuais (workflow_dispatch) não contam para a proteção da branch. Como o Validate passou,
+        # o resultado é publicado como status "Cobertura" no commit do PR (criado pelo GitHub Actions).
+        if: env.RELEASE_TOKEN == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.branch.outputs.sha }}
+          URL: ${{ steps.validate.outputs.url }}
+        run: |
+          gh api "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
+            -f state=success \
+            -f context=Cobertura \
+            -f description="🔍 Validate aprovado (build, testes e cobertura >= 80%)" \
+            -f target_url="$URL" --silent
 
       - name: Aprovar Pull Request
         # Quem abre o PR não pode aprová-lo. Com o PAT, o autor é o dono do token e o github-actions aprova.
@@ -280,9 +301,16 @@ jobs:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
         run: |
           PR="${{ steps.pr.outputs.url }}"
-          if gh pr merge "$PR" --squash --delete-branch; then
-            echo "PR mergeado na develop." >> "$GITHUB_STEP_SUMMARY"
-          elif gh pr merge "$PR" --squash --delete-branch --auto; then
+          # O GitHub leva alguns segundos para reconhecer o check "Cobertura" recém-concluído; tenta por até 3 minutos.
+          for tentativa in $(seq 1 18); do
+            if gh pr merge "$PR" --squash --delete-branch; then
+              echo "PR mergeado na develop (tentativa $tentativa)." >> "$GITHUB_STEP_SUMMARY"
+              exit 0
+            fi
+            echo "Merge ainda não permitido (tentativa $tentativa/18); nova tentativa em 10s..."
+            sleep 10
+          done
+          if gh pr merge "$PR" --squash --delete-branch --auto; then
             echo "Auto-merge habilitado: o PR será mergeado assim que as regras forem atendidas." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "::error::Não foi possível mergear $PR. Verifique as regras da develop (docs/processo/github.md)."
