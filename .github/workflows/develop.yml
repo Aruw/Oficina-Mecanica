@@ -55,20 +55,20 @@ jobs:
 
       - name: Artefato — resultados dos testes
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: resultado-testes
           path: app/target/surefire-reports
 
       - name: Artefato — cobertura (JaCoCo)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cobertura-jacoco
           path: app/target/site/jacoco
 
       - name: Artefato — aplicação (jar)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: oficina-jar
           path: app/target/oficina-*.jar
@@ -124,7 +124,7 @@ jobs:
 
       - name: Artefato — análise estática
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: analise-estatica
           path: |
@@ -185,7 +185,7 @@ jobs:
 
       - name: Artefato — vulnerabilidades
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vulnerabilidades
           path: |
