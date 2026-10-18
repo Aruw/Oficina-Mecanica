@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       versao:
-        description: 'Versão a gerar (X.Y.Z). Deixe vazio para usar a versão atual do pom, sem -SNAPSHOT.'
+        description: 'Sobrescrever versão da release (opcional, ex.: 1.2.0)'
         required: false
         type: string
 
@@ -167,7 +167,7 @@ jobs:
             "resultado-testes-$VERSAO.zip"
 
   proxima-versao:
-    name: Próxima versão (X.Y.Z+1-SNAPSHOT)
+    name: Próxima versão
     runs-on: ubuntu-latest
     needs: release
     env:
