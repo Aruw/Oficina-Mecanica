@@ -53,7 +53,7 @@ e **Identidade e Acesso**.
 
 Java 21 · Spring Boot 3.5 (Web, Data JPA, Validation, Security, OAuth2 Resource Server/JWT, Actuator) ·
 PostgreSQL 16 · Flyway · springdoc-openapi (Swagger UI) · JUnit 5, Mockito, AssertJ, MockMvc, H2 · JaCoCo ·
-Docker / Docker Compose · GitHub Actions (CI, CodeQL, PMD, Trivy, Release com GHCR).
+Docker / Docker Compose · GitHub Actions (CI, CodeQL, PMD, SonarQube Cloud, Trivy, Release com GHCR e Nexus).
 
 ## Banco de dados — decisão
 
@@ -201,8 +201,8 @@ Dados de demonstração carregados pelo Flyway: serviços *Troca de óleo*, *Ali
 - Análise de vulnerabilidades: [docs/seguranca/relatorio-vulnerabilidades.md](docs/seguranca/relatorio-vulnerabilidades.md)
 - CI/CD, versionamento (`-SNAPSHOT`), releases e proteção de branches: [docs/processo/github.md](docs/processo/github.md)
   - `validate.yml`: push em qualquer branch → build, testes e cobertura ≥ 80%
-  - `develop.yml`: merge na `develop` → testes, análise estática (CodeQL/PMD) e vulnerabilidades (Trivy), com artefatos
-  - `release.yml`: manual a partir da `main` → tag, GitHub Release, imagem no GHCR e próxima versão `X.Y.(Z+1)-SNAPSHOT`
+  - `develop.yml`: merge na `develop` → testes, análise estática (CodeQL/PMD/Sonar), vulnerabilidades (Trivy) e snapshot no Nexus, com artefatos
+  - `release.yml`: manual a partir da `main` → Nexus, imagem no GHCR, tag, GitHub Release e PR automático da próxima versão `X.Y.(Z+1)-SNAPSHOT`
 
 ## Vídeo
 
