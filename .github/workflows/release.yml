@@ -1,0 +1,151 @@
+name: 📦 Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      versao:
+        description: 'Versão a gerar (X.Y.Z). Deixe vazio para usar a versão atual do pom, sem -SNAPSHOT.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Gerar release
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout da main
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+
+      - name: Definir versão da release e próxima versão
+        id: versao
+        working-directory: app
+        env:
+          INFORMADA: ${{ inputs.versao }}
+        run: |
+          ATUAL=$(mvn -B -q help:evaluate -Dexpression=project.version -DforceStdout)
+          INFORMADA=$(echo "$INFORMADA" | tr -d '[:space:]')
+          if [ -n "$INFORMADA" ]; then
+            VERSAO="${INFORMADA#v}"
+          else
+            VERSAO="${ATUAL%-SNAPSHOT}"
+          fi
+          if ! [[ "$VERSAO" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Versão inválida '$VERSAO'. Use o formato X.Y.Z (ex.: 1.2.0)."
+            exit 1
+          fi
+          if git rev-parse -q --verify "refs/tags/v$VERSAO" >/dev/null; then
+            echo "::error::A tag v$VERSAO já existe. Informe outra versão."
+            exit 1
+          fi
+          IFS=. read -r MAJOR MINOR PATCH <<< "$VERSAO"
+          PROXIMA="$MAJOR.$MINOR.$((PATCH + 1))-SNAPSHOT"
+          {
+            echo "atual=$ATUAL"
+            echo "versao=$VERSAO"
+            echo "proxima=$PROXIMA"
+          } >> "$GITHUB_OUTPUT"
+          {
+            echo "### Release"
+            echo "| Versão no pom (main) | Release | Próxima versão de desenvolvimento |"
+            echo "|---|---|---|"
+            echo "| \`$ATUAL\` | **\`$VERSAO\`** | \`$PROXIMA\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Aplicar a versão da release no pom
+        working-directory: app
+        run: mvn -B -q versions:set -DnewVersion=${{ steps.versao.outputs.versao }}
+
+      - name: Build, testes e cobertura
+        working-directory: app
+        run: mvn -B verify
+
+      - name: Empacotar relatórios
+        run: |
+          cd app/target/site && zip -qr ../../../cobertura-jacoco-${{ steps.versao.outputs.versao }}.zip jacoco
+          cd ../ && zip -qr ../../resultado-testes-${{ steps.versao.outputs.versao }}.zip surefire-reports
+
+      - name: Login no GitHub Container Registry
+        run: echo "$GH_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build e publicação da imagem Docker
+        id: imagem
+        run: |
+          IMAGEM="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/oficina-api"
+          VERSAO="${{ steps.versao.outputs.versao }}"
+          docker build \
+            --label org.opencontainers.image.source="https://github.com/${GITHUB_REPOSITORY}" \
+            --label org.opencontainers.image.version="$VERSAO" \
+            --label org.opencontainers.image.revision="${GITHUB_SHA}" \
+            -t "$IMAGEM:$VERSAO" -t "$IMAGEM:latest" app
+          docker push "$IMAGEM:$VERSAO"
+          docker push "$IMAGEM:latest"
+          echo "imagem=$IMAGEM" >> "$GITHUB_OUTPUT"
+
+      - name: Commit e tag da release
+        run: |
+          VERSAO="${{ steps.versao.outputs.versao }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/pom.xml
+          git diff --cached --quiet || git commit -m "release: v$VERSAO"
+          git tag -a "v$VERSAO" -m "Release v$VERSAO"
+          git push origin "v$VERSAO"
+
+      - name: Criar GitHub Release
+        run: |
+          VERSAO="${{ steps.versao.outputs.versao }}"
+          IMAGEM="${{ steps.imagem.outputs.imagem }}"
+          cat > notas.md <<EOF
+          ## Oficina Mecânica API v$VERSAO
+
+          **Imagem Docker:** \`docker pull $IMAGEM:$VERSAO\`
+
+          Artefatos anexos: aplicação (\`oficina-$VERSAO.jar\`), resultado dos testes e relatório de cobertura.
+          EOF
+          gh release create "v$VERSAO" \
+            --verify-tag \
+            --title "v$VERSAO" \
+            --notes-file notas.md \
+            --generate-notes \
+            "app/target/oficina-$VERSAO.jar" \
+            "cobertura-jacoco-$VERSAO.zip" \
+            "resultado-testes-$VERSAO.zip"
+
+      - name: Preparar próxima versão (X.Y.Z+1-SNAPSHOT)
+        run: |
+          PROXIMA="${{ steps.versao.outputs.proxima }}"
+          if git ls-remote --exit-code --heads origin develop >/dev/null; then BASE=develop; else BASE=main; fi
+          BRANCH="chore/proxima-versao-$PROXIMA"
+          git fetch origin "$BASE"
+          git checkout -B "$BRANCH" "origin/$BASE"
+          (cd app && mvn -B -q versions:set -DnewVersion="$PROXIMA")
+          git add app/pom.xml
+          git commit -m "chore: prepara a próxima versão de desenvolvimento $PROXIMA"
+          git push --force origin "$BRANCH"
+          if gh pr create --base "$BASE" --head "$BRANCH" \
+               --title "chore: próxima versão $PROXIMA" \
+               --body "Gerado pelo workflow Release após publicar v${{ steps.versao.outputs.versao }}. Atualiza o pom para \`$PROXIMA\`."; then
+            echo "PR da próxima versão aberto para \`$BASE\`." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::Não foi possível abrir o PR automaticamente. Habilite 'Allow GitHub Actions to create and approve pull requests' em Settings → Actions → General, ou abra o PR da branch $BRANCH manualmente."
+          fi
