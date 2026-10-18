@@ -23,9 +23,9 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
@@ -55,20 +55,20 @@ jobs:
 
       - name: Artefato — resultados dos testes
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: resultado-testes
           path: app/target/surefire-reports
 
       - name: Artefato — cobertura (JaCoCo)
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: cobertura-jacoco
           path: app/target/site/jacoco
 
       - name: Artefato — aplicação (jar)
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: oficina-jar
           path: app/target/oficina-*.jar
@@ -78,16 +78,16 @@ jobs:
     name: Análise estática (CodeQL + PMD)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: '21'
           cache: maven
 
       - name: Inicializar CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: java-kotlin
           build-mode: manual
@@ -98,7 +98,7 @@ jobs:
         run: mvn -B -q compile -DskipTests
 
       - name: Analisar com CodeQL
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: codeql-java
           output: codeql-resultados
@@ -124,7 +124,7 @@ jobs:
 
       - name: Artefato — análise estática
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: analise-estatica
           path: |
@@ -137,7 +137,7 @@ jobs:
     name: Vulnerabilidades (Trivy)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Dependências, segredos e configuração (relatório)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
@@ -170,7 +170,7 @@ jobs:
 
       - name: Enviar SARIF ao Code Scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-imagem.sarif
           category: trivy-imagem
@@ -185,7 +185,7 @@ jobs:
 
       - name: Artefato — vulnerabilidades
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: vulnerabilidades
           path: |
