@@ -18,6 +18,12 @@ concurrency:
 jobs:
   build-testes:
     name: Build, testes e cobertura
+    # O merge do bump de versão (PR chore/proxima-versao-*) só altera o pom e já foi validado na própria branch.
+    if: >
+      github.event_name != 'push' || !(
+        contains(github.event.head_commit.message, 'chore/proxima-versao-') ||
+        startsWith(github.event.head_commit.message, 'chore: próxima versão') ||
+        startsWith(github.event.head_commit.message, 'chore: prepara a próxima versão'))
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -187,6 +193,12 @@ jobs:
 
   vulnerabilidades:
     name: Vulnerabilidades (Trivy)
+    # O merge do bump de versão (PR chore/proxima-versao-*) só altera o pom e já foi validado na própria branch.
+    if: >
+      github.event_name != 'push' || !(
+        contains(github.event.head_commit.message, 'chore/proxima-versao-') ||
+        startsWith(github.event.head_commit.message, 'chore: próxima versão') ||
+        startsWith(github.event.head_commit.message, 'chore: prepara a próxima versão'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
