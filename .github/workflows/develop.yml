@@ -87,7 +87,7 @@ jobs:
           cache: maven
 
       - name: Inicializar CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: java-kotlin
           build-mode: manual
@@ -98,7 +98,7 @@ jobs:
         run: mvn -B -q compile -DskipTests
 
       - name: Analisar com CodeQL
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: codeql-java
           output: codeql-resultados
@@ -170,7 +170,7 @@ jobs:
 
       - name: Enviar SARIF ao Code Scanning
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy-imagem.sarif
           category: trivy-imagem
