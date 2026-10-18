@@ -200,7 +200,7 @@ Dados de demonstração carregados pelo Flyway: serviços *Troca de óleo*, *Ali
 - Decisão do banco: [docs/adr/0001-banco-de-dados.md](docs/adr/0001-banco-de-dados.md)
 - Análise de vulnerabilidades: [docs/seguranca/relatorio-vulnerabilidades.md](docs/seguranca/relatorio-vulnerabilidades.md)
 - CI/CD, versionamento (`-SNAPSHOT`), releases e proteção de branches: [docs/processo/github.md](docs/processo/github.md)
-  - `ci.yml`: push em qualquer branch → build, testes e cobertura ≥ 80%
+  - `validate.yml`: push em qualquer branch → build, testes e cobertura ≥ 80%
   - `develop.yml`: merge na `develop` → testes, análise estática (CodeQL/PMD) e vulnerabilidades (Trivy), com artefatos
   - `release.yml`: manual a partir da `main` → tag, GitHub Release, imagem no GHCR e próxima versão `X.Y.(Z+1)-SNAPSHOT`
 
