@@ -7,7 +7,7 @@ COPY src ./src
 RUN mvn -B -q package -DskipTests
 
 # ---------- Runtime ----------
-FROM eclipse-temurin:21-jre-alpine
+FROM eclipse-temurin:25-jre-alpine
 WORKDIR /app
 
 RUN apk upgrade --no-cache && addgroup -S oficina && adduser -S oficina -G oficina
