@@ -13,7 +13,7 @@
 
     <groupId>com.aruw</groupId>
     <artifactId>oficina</artifactId>
-    <version>1.0.2-SNAPSHOT</version>
+    <version>1.0.5</version>
     <name>oficina</name>
     <description>MVP do Sistema Integrado de Atendimento e Execução de Serviços de uma oficina mecânica</description>
 
