@@ -81,11 +81,14 @@ Gerar release ─┬─► Publicar release no Nexus
 
 ### Como gerar uma release
 
-1. `Actions → 📦 Release → Run workflow` (a branch selecionada não importa: o workflow sempre faz checkout da `main`).
-2. Campo **versão**:
+1. Garanta que a `main` está atualizada: faça o merge de um PR `develop → main` (é ele que leva a versão
+   `X.Y.Z-SNAPSHOT` atual para a `main`).
+2. `Actions → 📦 Release → Run workflow` e, em **Use workflow from**, selecione **`Branch: main`**. Em qualquer outra
+   branch o workflow para no primeiro step com erro.
+3. Campo **Sobrescrever versão da release**:
    - vazio → usa a versão atual do pom sem `-SNAPSHOT` (`1.0.0-SNAPSHOT` → release `1.0.0`);
    - preenchido → usa a versão informada (`2.0.0` ou `v2.0.0`). Deve seguir `X.Y.Z` e a tag não pode existir.
-3. Resultado:
+4. Resultado:
    - tag `v1.0.0` e GitHub Release com `oficina-1.0.0.jar`, relatório de testes e de cobertura;
    - imagem `ghcr.io/aruw/oficina-api:1.0.0` (e `:latest`);
    - artefato `com.aruw:oficina:1.0.0` no Nexus (quando configurado);
