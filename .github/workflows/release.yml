@@ -234,12 +234,18 @@ jobs:
         id: pr
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN || github.token }}
+          BASE: ${{ steps.branch.outputs.base }}
+          BRANCH: ${{ steps.branch.outputs.branch }}
         run: |
-          URL=$(gh pr create \
-            --base "${{ steps.branch.outputs.base }}" \
-            --head "${{ steps.branch.outputs.branch }}" \
-            --title "chore: próxima versão $PROXIMA" \
-            --body "Gerado pelo workflow 📦 Release após publicar v$VERSAO. Atualiza o pom para \`$PROXIMA\`. Aprovado e mergeado automaticamente.")
+          # Reaproveita o PR se ele já existir (ex.: ao reexecutar o job).
+          URL=$(gh pr list --head "$BRANCH" --base "$BASE" --state open --json url --jq '.[0].url // empty')
+          if [ -z "$URL" ]; then
+            URL=$(gh pr create \
+              --base "$BASE" \
+              --head "$BRANCH" \
+              --title "chore: próxima versão $PROXIMA" \
+              --body "Gerado pelo workflow 📦 Release após publicar v$VERSAO. Atualiza o pom para \`$PROXIMA\`. Aprovado e mergeado automaticamente.")
+          fi
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "PR: $URL" >> "$GITHUB_STEP_SUMMARY"
 
@@ -286,7 +292,7 @@ jobs:
           gh api "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=success \
             -f context=Cobertura \
-            -f description="🔍 Validate aprovado (build, testes e cobertura >= 80%)" \
+            -f description="Validate aprovado (build, testes e cobertura >= 80%)" \
             -f target_url="$URL" --silent
 
       - name: Aprovar Pull Request
