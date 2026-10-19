@@ -31,6 +31,14 @@ jobs:
       run:
         working-directory: app
     steps:
+      - name: Garantir execução a partir da main
+        working-directory: .
+        run: |
+          if [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "::error::O 📦 Release só pode ser executado a partir da main. Em 'Use workflow from', selecione 'Branch: main' (selecionado: ${GITHUB_REF_NAME})."
+            exit 1
+          fi
+
       - name: Checkout da main
         uses: actions/checkout@v4
         with:
@@ -61,7 +69,13 @@ jobs:
             exit 1
           fi
           if git rev-parse -q --verify "refs/tags/v$VERSAO" >/dev/null; then
-            echo "::error::A tag v$VERSAO já existe. Informe outra versão."
+            DEVELOP=$(git show origin/develop:app/pom.xml 2>/dev/null | sed '/<parent>/,/<\/parent>/d' \
+              | grep -m1 -oE '<version>[^<]+</version>' | sed -E 's#</?version>##g')
+            if [ -z "$INFORMADA" ] && [ -n "$DEVELOP" ] && [ "$DEVELOP" != "$ATUAL" ]; then
+              echo "::error::A tag v$VERSAO já existe e a main está desatualizada (main: $ATUAL, develop: $DEVELOP). Faça o merge de um PR develop → main antes de gerar a release."
+            else
+              echo "::error::A tag v$VERSAO já existe. Informe outra versão no campo 'Sobrescrever versão da release'."
+            fi
             exit 1
           fi
           IFS=. read -r MAJOR MINOR PATCH <<< "$VERSAO"
