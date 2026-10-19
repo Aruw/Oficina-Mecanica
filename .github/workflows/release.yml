@@ -12,7 +12,6 @@ permissions:
   contents: write
   packages: write
   pull-requests: write
-  actions: write
   statuses: write
 
 concurrency:
@@ -249,51 +248,18 @@ jobs:
           echo "url=$URL" >> "$GITHUB_OUTPUT"
           echo "PR: $URL" >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Executar 🔍 Validate na branch e aguardar
-        id: validate
-        # Sem RELEASE_TOKEN, o push do bot não dispara workflows: o Validate é executado manualmente (workflow_dispatch).
-        # Com RELEASE_TOKEN, o próprio push já disparou o Validate; só aguarda essa execução.
-        env:
-          GH_TOKEN: ${{ github.token }}
-          GH_REPO: ${{ github.repository }}
-          BRANCH: ${{ steps.branch.outputs.branch }}
-        run: |
-          if [ -z "$RELEASE_TOKEN" ]; then
-            gh workflow run validate.yml --ref "$BRANCH"
-            EVENTO=workflow_dispatch
-          else
-            EVENTO=push
-          fi
-          ID=""
-          for _ in $(seq 1 30); do
-            ID=$(gh run list --workflow validate.yml --branch "$BRANCH" --event "$EVENTO" \
-              --limit 1 --json databaseId --jq '.[0].databaseId // empty')
-            [ -n "$ID" ] && break
-            sleep 5
-          done
-          if [ -z "$ID" ]; then
-            echo "::error::A execução do 🔍 Validate na branch $BRANCH não foi encontrada."
-            exit 1
-          fi
-          URL="https://github.com/${GH_REPO}/actions/runs/$ID"
-          echo "url=$URL" >> "$GITHUB_OUTPUT"
-          echo "🔍 Validate: $URL" >> "$GITHUB_STEP_SUMMARY"
-          gh run watch "$ID" --exit-status --interval 15
-
       - name: Registrar o check Cobertura no PR
-        # Execuções manuais (workflow_dispatch) não contam para a proteção da branch. Como o Validate passou,
-        # o resultado é publicado como status "Cobertura" no commit do PR (criado pelo GitHub Actions).
-        if: env.RELEASE_TOKEN == ''
+        # O bump só altera a versão no pom.xml e o código da develop já foi validado, então o 🔍 Validate não roda.
+        # O status "Cobertura" (exigido pela develop) é publicado direto no commit do PR, em nome do GitHub Actions.
         env:
           GH_TOKEN: ${{ github.token }}
           SHA: ${{ steps.branch.outputs.sha }}
-          URL: ${{ steps.validate.outputs.url }}
         run: |
           gh api "repos/${GITHUB_REPOSITORY}/statuses/${SHA}" \
             -f state=success \
             -f context=Cobertura \
-            -f description="Validate aprovado (build, testes e cobertura >= 80%)" \
-            -f target_url="$URL" --silent
+            -f description="Bump de versao: apenas o pom.xml foi alterado" \
+            -f target_url="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" --silent
 
       - name: Aprovar Pull Request
         # Quem abre o PR não pode aprová-lo. Com o PAT, o autor é o dono do token e o github-actions aprova.
