@@ -1,5 +1,16 @@
 # Oficina Mecânica — Sistema Integrado de Atendimento e Execução de Serviços (MVP)
 
+[![Quality Gate Status](https://sonarcloud.io/api/project_badges/measure?project=Aruw_Oficina-Mecanica&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Aruw_Oficina-Mecanica)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=Aruw_Oficina-Mecanica&metric=coverage)](https://sonarcloud.io/summary/new_code?id=Aruw_Oficina-Mecanica)
+[![Bugs](https://sonarcloud.io/api/project_badges/measure?project=Aruw_Oficina-Mecanica&metric=bugs)](https://sonarcloud.io/summary/new_code?id=Aruw_Oficina-Mecanica)
+[![Vulnerabilities](https://sonarcloud.io/api/project_badges/measure?project=Aruw_Oficina-Mecanica&metric=vulnerabilities)](https://sonarcloud.io/summary/new_code?id=Aruw_Oficina-Mecanica)
+[![Code Smells](https://sonarcloud.io/api/project_badges/measure?project=Aruw_Oficina-Mecanica&metric=code_smells)](https://sonarcloud.io/summary/new_code?id=Aruw_Oficina-Mecanica)
+[![Duplicated Lines (%)](https://sonarcloud.io/api/project_badges/measure?project=Aruw_Oficina-Mecanica&metric=duplicated_lines_density)](https://sonarcloud.io/summary/new_code?id=Aruw_Oficina-Mecanica)
+[![Security Rating](https://sonarcloud.io/api/project_badges/measure?project=Aruw_Oficina-Mecanica&metric=security_rating)](https://sonarcloud.io/summary/new_code?id=Aruw_Oficina-Mecanica)
+[![Reliability Rating](https://sonarcloud.io/api/project_badges/measure?project=Aruw_Oficina-Mecanica&metric=reliability_rating)](https://sonarcloud.io/summary/new_code?id=Aruw_Oficina-Mecanica)
+[![Maintainability Rating](https://sonarcloud.io/api/project_badges/measure?project=Aruw_Oficina-Mecanica&metric=sqale_rating)](https://sonarcloud.io/summary/new_code?id=Aruw_Oficina-Mecanica)
+[![Lines of Code](https://sonarcloud.io/api/project_badges/measure?project=Aruw_Oficina-Mecanica&metric=ncloc)](https://sonarcloud.io/summary/new_code?id=Aruw_Oficina-Mecanica)
+
 Back-end da Fase 1 do curso **SOAT — Software Architecture (FIAP)**.
 
 > 📹 **Vídeo da entrega:** `<COLE AQUI O LINK DO YOUTUBE>`

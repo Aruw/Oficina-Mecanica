@@ -38,7 +38,7 @@ public class VeiculoService {
 
     @Transactional
     public Veiculo atualizar(UUID id, VeiculoCommand cmd) {
-        Veiculo veiculo = buscar(id);
+        Veiculo veiculo = obter(id);
         exigirCliente(cmd.clienteId());
         veiculo.atualizar(cmd.marca(), cmd.modelo(), cmd.ano(), cmd.clienteId());
         return veiculos.save(veiculo);
@@ -46,6 +46,10 @@ public class VeiculoService {
 
     @Transactional(readOnly = true)
     public Veiculo buscar(UUID id) {
+        return obter(id);
+    }
+
+    private Veiculo obter(UUID id) {
         return veiculos.findById(id).orElseThrow(() -> new RecursoNaoEncontradoException("Veículo", id));
     }
 
@@ -56,7 +60,7 @@ public class VeiculoService {
 
     @Transactional
     public void remover(UUID id) {
-        Veiculo veiculo = buscar(id);
+        Veiculo veiculo = obter(id);
         if (ordens.existsByVeiculoId(id)) {
             throw new DomainException("Veículo possui ordens de serviço vinculadas e não pode ser removido");
         }
