@@ -60,7 +60,7 @@ Vulnerabilidades (Trivy) ──────────────────�
 |---|---|---|
 | Build, testes e cobertura | build → testes unitários → testes de integração → relatório de cobertura → cobertura ≥ 80% → empacotar jar | `resultado-testes`, `cobertura-jacoco`, `oficina-jar` |
 | Análise estática (CodeQL, PMD e Sonar) | baixa a cobertura → CodeQL → PMD → CPD → **SonarQube Cloud** (se configurado) | `analise-estatica` |
-| Vulnerabilidades (Trivy) | dependências/segredos/IaC → build da imagem → imagem (tabela e SARIF) → Code Scanning | `vulnerabilidades` |
+| Vulnerabilidades (Trivy) | dependências/segredos/IaC → build da imagem → imagem (JSON e SARIF) → Code Scanning → **relatório em Markdown** (`.github/scripts/relatorio_trivy.py`) | `vulnerabilidades` (`relatorio-vulnerabilidades.md` + JSON + SARIF) |
 | Publicar snapshot no Nexus | `mvn deploy` da versão `-SNAPSHOT` no repositório `maven-snapshots` | — |
 | Excluir branch mergeada | descobre o PR do commit e apaga a branch de origem (ex.: `feature/minha-tarefa`); roda **sempre** ao final, mesmo se algum job falhar | — |
 
