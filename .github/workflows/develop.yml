@@ -211,19 +211,19 @@ jobs:
           scan-ref: .
           scanners: vuln,secret,misconfig
           severity: CRITICAL,HIGH,MEDIUM
-          format: table
-          output: trivy-repositorio.txt
+          format: json
+          output: trivy-repositorio.json
 
       - name: Build da imagem Docker
         run: docker build -t oficina-api:${{ github.sha }} app
 
-      - name: Trivy — imagem Docker (relatório)
+      - name: Trivy — imagem Docker
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: oficina-api:${{ github.sha }}
           severity: CRITICAL,HIGH,MEDIUM
-          format: table
-          output: trivy-imagem.txt
+          format: json
+          output: trivy-imagem.json
 
       - name: Trivy — imagem Docker (SARIF)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
@@ -240,13 +240,12 @@ jobs:
           sarif_file: trivy-imagem.sarif
           category: trivy-imagem
 
-      - name: Resumo das vulnerabilidades
+      - name: Gerar relatório em Markdown
         if: always()
         run: |
-          {
-            echo "### Trivy — repositório"; echo '```'; cat trivy-repositorio.txt 2>/dev/null || echo "sem achados"; echo '```'
-            echo "### Trivy — imagem"; echo '```'; grep -E '^(Total|.*\((alpine|jar)\))' trivy-imagem.txt 2>/dev/null || echo "sem achados"; echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
+          python3 -I .github/scripts/relatorio_trivy.py \
+            trivy-repositorio.json trivy-imagem.json relatorio-vulnerabilidades.md
+          cat relatorio-vulnerabilidades.md >> "$GITHUB_STEP_SUMMARY"
 
       - name: Artefato — vulnerabilidades
         if: always()
@@ -254,8 +253,9 @@ jobs:
         with:
           name: vulnerabilidades
           path: |
-            trivy-repositorio.txt
-            trivy-imagem.txt
+            relatorio-vulnerabilidades.md
+            trivy-repositorio.json
+            trivy-imagem.json
             trivy-imagem.sarif
 
   publicar-snapshot:
