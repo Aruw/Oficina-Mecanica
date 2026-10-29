@@ -14,7 +14,7 @@
 Back-end da Fase 1 do curso **SOAT — Software Architecture (FIAP)**.
 
 > 📹 **Vídeo da entrega:** `<COLE AQUI O LINK DO YOUTUBE>`
-> 🧭 **Documentação DDD (Miro):** `<COLE AQUI O LINK DO MIRO>` · cópia no repositório: [docs/ddd](docs/ddd/README.md)
+> 🧭 **Documentação DDD (Miro):** [Board no Miro](https://miro.com/app/board/uXjVEToLmPQ=/) · cópia no repositório: [docs/ddd](docs/ddd/README.md)
 
 ## Identificação
 
@@ -209,7 +209,8 @@ Dados de demonstração carregados pelo Flyway: serviços *Troca de óleo*, *Ali
 - DDD (Event Storming, diagramas, linguagem ubíqua, relação com o código): [docs/ddd](docs/ddd/README.md)
 - Arquitetura: [docs/arquitetura.md](docs/arquitetura.md)
 - Decisão do banco: [docs/adr/0001-banco-de-dados.md](docs/adr/0001-banco-de-dados.md)
-- Análise de vulnerabilidades: [docs/seguranca/relatorio-vulnerabilidades.md](docs/seguranca/relatorio-vulnerabilidades.md)
+- Análise de vulnerabilidades: [docs/seguranca/relatorio-vulnerabilidades-exemplo.md](docs/seguranca/relatorio-vulnerabilidades-exemplo.md)
+- Qualidade de código (SonarQube Cloud): [painel do projeto](https://sonarcloud.io/summary/overall?id=Aruw_Oficina-Mecanica&branch=develop)
 - CI/CD, versionamento (`-SNAPSHOT`), releases e proteção de branches: [docs/processo/github.md](docs/processo/github.md)
   - `validate.yml`: push em qualquer branch → build, testes e cobertura ≥ 80%
   - `develop.yml`: merge na `develop` → testes, análise estática (CodeQL/PMD/Sonar), vulnerabilidades (Trivy) e snapshot no Nexus, com artefatos

@@ -1,7 +1,5 @@
 # Diagramas DDD
 
-Versão para impressão: [`diagramas.pdf`](diagramas.pdf).
-
 ## 1. Subdomínios e Bounded Contexts
 
 | Bounded Context | Tipo de subdomínio | Responsabilidade | Pacotes |

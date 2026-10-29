@@ -55,8 +55,10 @@ class DocumentoTest {
         Documento a = Documento.of("52998224725");
         Documento b = Documento.of("529.982.247-25");
         assertThat(a.formatado()).isEqualTo("529.982.247-25");
-        assertThat(a).isEqualTo(b).hasSameHashCodeAs(b);
-        assertThat(a).hasToString("529.982.247-25");
-        assertThat(a).isNotEqualTo(Documento.of("11144477735"));
+        assertThat(a)
+                .isEqualTo(b)
+                .hasSameHashCodeAs(b)
+                .hasToString("529.982.247-25")
+                .isNotEqualTo(Documento.of("11144477735"));
     }
 }
