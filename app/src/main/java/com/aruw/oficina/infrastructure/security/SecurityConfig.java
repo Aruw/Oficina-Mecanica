@@ -44,7 +44,7 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
                 // API stateless com JWT no cabeçalho Authorization (sem sessão nem cookies): não há vetor de CSRF.
-                // Decisão documentada em docs/seguranca/relatorio-vulnerabilidades.md.
+                // Decisão documentada em docs/seguranca/relatorio-vulnerabilidades-exemplo.md.
                 .csrf(AbstractHttpConfigurer::disable) // NOSONAR java:S4502 — CSRF não se aplica a API stateless com Bearer token
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .headers(h -> h.contentSecurityPolicy(csp -> csp.policyDirectives(

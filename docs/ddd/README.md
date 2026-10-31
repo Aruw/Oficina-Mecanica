@@ -2,7 +2,7 @@
 
 | Artefato | Arquivo |
 |---|---|
-| Quadro no Miro | **`<COLE AQUI O LINK PÚBLICO DO MIRO>`** |
+| Quadro no Miro | [https://miro.com/app/board/uXjVEToLmPQ=/](https://miro.com/app/board/uXjVEToLmPQ=/) |
 | Event Storming (3 fluxos) | [event-storming.md](event-storming.md) · [event-storming.pdf](event-storming.pdf) |
 | Diagramas (contextos, agregados, estados, sequência, camadas) | [diagramas.md](diagramas.md) · [diagramas.pdf](diagramas.pdf) |
 | Linguagem Ubíqua e glossário | [linguagem-ubiqua.md](linguagem-ubiqua.md) |
