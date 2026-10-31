@@ -13,7 +13,7 @@
 
 Back-end da Fase 1 do curso **SOAT — Software Architecture (FIAP)**.
 
-> 📹 **Vídeo da entrega:** `<COLE AQUI O LINK DO YOUTUBE>`
+> 📹 **Vídeo da entrega:** [YouTube](https://youtu.be/NSFPP2Lq3Hs)
 > 🧭 **Documentação DDD (Miro):** [Board no Miro](https://miro.com/app/board/uXjVEToLmPQ=/) · cópia no repositório: [docs/ddd](docs/ddd/README.md)
 
 ## Identificação
@@ -140,7 +140,6 @@ Testes de integração dos fluxos principais: `AutenticacaoIT`, `CadastrosIT`, `
   **1. Fluxo completo da OS** em ordem ou no Collection Runner. Cada requisição tem testes de status/regra.
   Também roda via linha de comando:
   `docker run --rm -v "$PWD/docs/api:/etc/newman" postman/newman:6-alpine run oficina.postman_collection.json --env-var baseUrl=http://host.docker.internal:8080`
-- Roteiro de chamadas para demonstração (VS Code / IntelliJ): [docs/api/oficina.http](docs/api/oficina.http)
 
 Principais rotas:
 
@@ -218,4 +217,4 @@ Dados de demonstração carregados pelo Flyway: serviços *Troca de óleo*, *Ali
 
 ## Vídeo
 
-`<COLE AQUI O LINK DO YOUTUBE>`
+https://youtu.be/NSFPP2Lq3Hs
